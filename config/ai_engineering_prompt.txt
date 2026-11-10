@@ -32,14 +32,10 @@
 输出语言：{language}
 报告模式：{report_mode}（{report_type}）
 分析时间：{current_time}
-数据量：{news_count} 条热榜，{rss_count} 条 RSS
+数据量：{rss_count} 条订阅候选
 来源：{platforms}
 主题：{keywords}
 
 以下是待分析数据：
-热榜：
-{news_content}
 RSS：
 {rss_content}
-独立展示：
-{standalone_content}

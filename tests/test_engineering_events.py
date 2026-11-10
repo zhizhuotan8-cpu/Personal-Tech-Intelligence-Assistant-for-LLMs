@@ -30,6 +30,6 @@ class EngineeringEventTests(unittest.TestCase):
         a.allowed_event_urls={'https://example.com/0'}
         result=a._parse_response(json.dumps({'events':[self.event(0)],'signals':'额外事件'}))
         self.assertTrue(result.success)
-        self.assertEqual(result.signals,'')
+        self.assertFalse(hasattr(result, 'signals'))
         self.assertEqual(len(result.events),1)
         self.assertFalse(a._parse_response('{"core_trends":"旧结构"}').success)
