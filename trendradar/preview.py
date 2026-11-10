@@ -110,6 +110,59 @@ def previous_recommendations(directory):
     return urls
 
 
+def recent_recommendation_context(directory, limit=20):
+    events, seen = [], set()
+    for path in sorted(directory.parent.glob('*/status.json'), reverse=True):
+        try:
+            report = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if report.get('status') != '成功生成' or report.get('demo'):
+            continue
+        for event in report.get('events', []):
+            url = event.get('url')
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            events.append({key: str(event.get(key, ''))[:500] for key in ('title','facts','url')})
+            if len(events) >= limit:
+                return events
+    return events
+
+
+def review_shortlist(ai, analysis_config, selected, draft, get_time):
+    """Verify the actual shortlisted articles, rather than the first five inputs."""
+    by_url = {item['url']: item for item in selected}
+    shortlist = [by_url[event['url']] for event in draft.events if event.get('url') in by_url]
+    if not shortlist:
+        return draft, {}, 0
+    reviewer = AIAnalyzer(ai, dict(analysis_config, FETCH_EVIDENCE=True), get_time)
+    result = reviewer.analyze([], rss_stats=[dict(word='工程情报',titles=shortlist)],
+                              report_type='入选文章正文复核：保留维护状态、适用条件与可执行方法')
+    if not result.success:
+        raise RuntimeError('AI 正文复核失败：' + result.error)
+    unsupported = {
+        item['url'] for item in shortlist
+        if str(item.get('summary','')).startswith('实践目录简介')
+        and not reviewer.event_evidence.get(item['url'],'').startswith('网页正文摘录')
+    }
+    before = len(result.events)
+    result.events = [event for event in result.events if event['url'] not in unsupported]
+    return result, reviewer.event_evidence, before - len(result.events)
+
+
+def classify_preview(selector, candidates, tags, interests):
+    """Keep reasoning/output within budget; any failed batch fails the run."""
+    matches = []
+    size = max(1, min(20, selector.batch_size))
+    for start in range(0, len(candidates), size):
+        batch = selector.classify_batch(candidates[start:start + size], tags, interests)
+        if batch is None:
+            return None
+        matches.extend(batch)
+    return matches
+
+
 def filter_recommended(items, seen):
     # Repeated compatibility notices remain eligible for the model's risk assessment.
     risk_words = ('breaking', 'deprecat', 'sunset', 'end of life', 'removal',
@@ -183,7 +236,7 @@ def collect_and_analyze(config, state, directory, full_evidence=False):
         dict(id=3,tag='模型/API',description='模型能力、API 兼容、弃用、成本、限流与结构化输出'),
         dict(id=4,tag='部署',description='推理部署、延迟吞吐与应用运行兼容性'),
     ]
-    matches = selector.classify_batch(candidates,tags,interests)
+    matches = classify_preview(selector,candidates,tags,interests)
     if matches is None:
         raise RuntimeError('AI 筛选失败，未生成新的简报，请稍后重试。')
     ids = {m['news_item_id'] for m in matches if m['relevance_score'] >= config['AI_FILTER'].get('MIN_SCORE',0.7)}
@@ -192,12 +245,20 @@ def collect_and_analyze(config, state, directory, full_evidence=False):
         state.update(status='本次无值得推荐的更新',message=f'已分析 {len(candidates)} 条近期内容，本次没有满足兴趣与质量要求的更新。')
         return
     print(f'[3/3] 为 {len(selected)} 条候选生成工程简报...',flush=True)
-    analysis_config = dict(config['AI_ANALYSIS'],STRUCTURED_EVENTS=True,FETCH_EVIDENCE=full_evidence)
-    analyzer = AIAnalyzer(ai,analysis_config,lambda:get_configured_time(config.get('TIMEZONE','Asia/Shanghai')))
+    analysis_config = dict(config['AI_ANALYSIS'],STRUCTURED_EVENTS=True,FETCH_EVIDENCE=full_evidence,
+                           RECENT_RECOMMENDATIONS=recent_recommendation_context(directory))
+    get_time = lambda:get_configured_time(config.get('TIMEZONE','Asia/Shanghai'))
+    analyzer = AIAnalyzer(ai,analysis_config,get_time)
     result = analyzer.analyze([],rss_stats=[dict(word='工程情报',titles=selected)],report_type='手动真实预览')
     if not result.success:
         raise RuntimeError('AI 简报生成失败：'+result.error)
-    state.update(events=result.events,evidence=analyzer.event_evidence,status='成功生成' if result.events else '本次无值得推荐的更新',message='' if result.events else '模型未选出值得推荐的事件。')
+    evidence = analyzer.event_evidence
+    if result.events:
+        print('[复核] 正在核对入选文章正文、维护状态与信息增量...', flush=True)
+        result, reviewed_evidence, omitted = review_shortlist(ai,analysis_config,selected,result,get_time)
+        evidence = reviewed_evidence or evidence
+        state['omitted_unverified'] = omitted
+    state.update(events=result.events,evidence=evidence,status='成功生成' if result.events else '本次无值得推荐的更新',message='' if result.events else '本次未选出证据充分且有新增价值的事件。')
 
 
 def run_preview(demo=False, no_open=False, full_evidence=False, days=None):

@@ -26,11 +26,13 @@
 .\.venv\Scripts\python.exe -m trendradar --preview --no-open
 # 可选：扩大到近七天，页面会明确标注范围
 .\.venv\Scripts\python.exe -m trendradar --preview --days 7
-# 可选：增加原文摘录，运行时间更长
+# 可选：初选时也增加原文摘录，运行时间更长
 .\.venv\Scripts\python.exe -m trendradar --preview --full-evidence
 ```
 
-预览使用固定的 Agent、RAG、模型/API、部署标签及完整兴趣说明，省去自动标签提取调用。默认预览利用标题和 RSS 摘要，最多分析配置上限内的近期条目，不复用正式日报的分类记录；每次预览可能重新调用模型。配置的来源顺序会影响超额条目的截取。正式日报仍使用原来的 `python -m trendradar`，本次不自动创建定时任务。
+预览使用固定的 Agent、RAG、模型/API、部署标签及完整兴趣说明。初选使用标题和 RSS 摘要；默认再对最终入选的最多五篇补取正文并调用模型复核维护状态、具体方法及适用条件，因此比仅摘要版多一次模型调用和有限网页请求。正文不可用时，有信息的 RSS 摘要仍可降级使用；只有目录简介的实践文章不进入最终结果。每次不一定有五条。
+
+成功真实预览中的已推荐链接默认跳过，兼容性风险可复查；最近二十篇推荐的标题与事实作为选稿参考，减少同主题不同链接的重复，这不是确定性语义去重。记录保存在本地 output/preview，清理后会丢失。正式日报仍使用原来的 `python -m trendradar`，本次不自动创建定时任务。
 
 ## 状态与处理
 
@@ -42,4 +44,4 @@
 
 首次运行耗时取决于 RSS 网络和模型速度。网页摘要及厂商原文未经独立核验，建议小规模验证后再应用。
 
-新增实践目录：Anthropic Engineering、Haystack Tutorials、Langfuse Cookbook。它们的历史教程作为“实践阅读”参与筛选，不受 --days 动态窗口限制；未知原始发布日期不会填成今天。默认用目录简介，--full-evidence 可尝试获取入选文章正文摘录。候选有总量上限，按来源轮流取样。
+新增实践目录：Anthropic Engineering、Haystack Tutorials、Langfuse Cookbook。它们的历史教程作为“实践阅读”参与筛选，不受 --days 动态窗口限制；未知原始发布日期不会填成今天。目录简介用于初选，入选后默认尝试正文复核。候选有总量上限，按来源轮流取样。

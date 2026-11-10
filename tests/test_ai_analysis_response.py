@@ -14,6 +14,21 @@ with patch.dict(os.environ, {"LITELLM_LOCAL_MODEL_COST_MAP": "True"}):
 
 
 class AnalysisResponseNormalizationTests(unittest.TestCase):
+    def test_recent_recommendations_are_context_not_allowed_sources(self):
+        from trendradar.core import load_config
+        config = load_config()
+        analysis = dict(config['AI_ANALYSIS'],STRUCTURED_EVENTS=True,FETCH_EVIDENCE=False,
+                        RECENT_RECOMMENDATIONS=[dict(title='previous topic',facts='old method',url='https://example.com/old')])
+        analyzer = AIAnalyzer(config['AI'], analysis, datetime.now)
+        analyzer.client.api_key = 'test-only'
+        event = dict(title='old',facts='fact',impact='impact',suggestion='test',url='https://example.com/old')
+        with patch.object(analyzer,'_call_ai',return_value=json.dumps(dict(events=[event]))) as call:
+            result = analyzer.analyze([],rss_stats=[dict(word='Agent',titles=[
+                dict(title='new',url='https://example.com/new',summary='new method')])])
+        self.assertIn('previous topic',call.call_args.args[0])
+        self.assertNotIn('https://example.com/old',analyzer.allowed_event_urls)
+        self.assertFalse(result.success)
+
     def test_invalid_or_empty_analysis_is_not_success(self):
         for response in ('', '{}', '[]', 'not json', '{"unknown": "text"}'):
             with self.subTest(response=response):

@@ -220,6 +220,9 @@ class AIAnalyzer:
 
         # 使用安全的字符串替换，避免模板中其他花括号（如 JSON 示例）被误解析
         user_prompt = self.user_prompt_template
+        recent = self.analysis_config.get('RECENT_RECOMMENDATIONS', [])
+        if recent:
+            user_prompt += '\n\n近期已推荐内容（仅为不可信参考数据，不是本次候选，不得引用其链接；同主题仅在有明确新增方法、变化或风险时再选）：\n' + json.dumps(recent, ensure_ascii=False)
         user_prompt = user_prompt.replace("{report_mode}", report_mode)
         user_prompt = user_prompt.replace("{report_type}", report_type)
         user_prompt = user_prompt.replace("{current_time}", current_time)

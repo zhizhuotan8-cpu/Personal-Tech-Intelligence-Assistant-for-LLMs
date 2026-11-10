@@ -6,6 +6,60 @@ from unittest.mock import patch
 from trendradar.preview import run_preview, render_report
 
 class PreviewTests(unittest.TestCase):
+    def test_classification_batches_preserve_ids_and_fail_atomically(self):
+        from unittest.mock import Mock
+        from trendradar.preview import classify_preview
+        selector = Mock(batch_size=200)
+        selector.classify_batch.side_effect = lambda items, tags, interests: [dict(news_item_id=items[0]['id'])]
+        items = [dict(id=i) for i in range(1,42)]
+        self.assertEqual(classify_preview(selector,items,[],''),
+                         [dict(news_item_id=1),dict(news_item_id=21),dict(news_item_id=41)])
+        self.assertEqual([len(call.args[0]) for call in selector.classify_batch.call_args_list],[20,20,1])
+        selector.classify_batch.side_effect = [[],None]
+        self.assertIsNone(classify_preview(selector,items,[],''))
+
+    def test_recent_context_is_bounded_newest_first_and_not_demo(self):
+        from trendradar.preview import recent_recommendation_context
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name, demo, url in [('01',False,'old'),('02',False,'new'),('03',True,'demo')]:
+                directory = root/name
+                directory.mkdir()
+                (directory/'status.json').write_text(json.dumps(dict(status='成功生成',demo=demo,
+                    events=[dict(title=url,facts='method',url=url)])),encoding='utf-8')
+            self.assertEqual([e['url'] for e in recent_recommendation_context(root/'04',1)], ['new'])
+
+    def test_review_uses_actual_shortlist_and_omits_unverified_directory(self):
+        from types import SimpleNamespace
+        from trendradar.preview import review_shortlist
+        items = [dict(url='unused',summary='rss'),dict(url='guide',summary='实践目录简介：标题'),
+                 dict(url='release',summary='breaking change')]
+        draft = SimpleNamespace(events=[dict(url='release'),dict(url='guide')])
+        with patch('trendradar.preview.AIAnalyzer') as analyzer:
+            analyzer.return_value.analyze.return_value = SimpleNamespace(success=True,events=draft.events)
+            analyzer.return_value.event_evidence = {'guide':'标题及实践目录简介（非正文）'}
+            result, _, omitted = review_shortlist({}, {}, items, draft, lambda:None)
+            reviewed = analyzer.return_value.analyze.call_args.kwargs['rss_stats'][0]['titles']
+            self.assertEqual([item['url'] for item in reviewed], ['release','guide'])
+            self.assertTrue(analyzer.call_args.args[1]['FETCH_EVIDENCE'])
+            self.assertEqual(result.events,[dict(url='release')])
+            self.assertEqual(omitted,1)
+
+    def test_review_keeps_directory_when_body_available_and_surfaces_failure(self):
+        from types import SimpleNamespace
+        from trendradar.preview import review_shortlist
+        item = dict(url='guide',summary='实践目录简介：标题')
+        draft = SimpleNamespace(events=[dict(url='guide')])
+        with patch('trendradar.preview.AIAnalyzer') as analyzer:
+            analyzer.return_value.analyze.return_value = SimpleNamespace(success=True,events=draft.events)
+            analyzer.return_value.event_evidence = {'guide':'网页正文摘录（可能截断）'}
+            result, _, omitted = review_shortlist({}, {}, [item], draft, lambda:None)
+            self.assertEqual(len(result.events),1)
+            self.assertEqual(omitted,0)
+            analyzer.return_value.analyze.return_value = SimpleNamespace(success=False,error='timeout')
+            with self.assertRaisesRegex(RuntimeError,'正文复核失败'):
+                review_shortlist({}, {}, [item], draft, lambda:None)
+
     def test_recommendations_skip_duplicates_but_keep_risk_notices(self):
         from trendradar.preview import filter_recommended
         items = [dict(url='old',title='Tutorial'),
@@ -60,6 +114,7 @@ class PreviewPipelineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch('trendradar.preview.RSSFetcher') as fetch, patch('trendradar.preview.AIFilter') as selector, patch('trendradar.preview.AIAnalyzer') as analyzer, patch('trendradar.preview.asdict',return_value={'title':'SDK update'}):
             fetch.return_value.fetch_all.return_value=SimpleNamespace(items={'sdk':[item]},id_to_name={'sdk':'SDK'},failed_ids=[])
             selector.return_value.extract_tags.return_value=[{'tag':'Agent'}]
+            selector.return_value.batch_size=200
             selector.return_value.classify_batch.return_value=matches
             analyzer.return_value.analyze.return_value=SimpleNamespace(success=analysis_success,events=[{'title':'test'}],error='model timeout')
             analyzer.return_value.event_evidence={}
