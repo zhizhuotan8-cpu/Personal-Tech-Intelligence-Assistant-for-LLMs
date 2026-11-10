@@ -7,6 +7,7 @@ AI 分析器模块
 """
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, NamedTuple, Optional
 
@@ -41,6 +42,8 @@ class AIAnalysisResult:
     rss_insights: str = ""               # RSS 深度洞察
     outlook_strategy: str = ""           # 研判与策略建议
     standalone_summaries: Dict[str, str] = field(default_factory=dict)  # 独立展示区概括 {源ID: 概括}
+
+    events: List[Dict] = field(default_factory=list)
 
     # 基础元数据
     raw_response: str = ""               # 原始响应
@@ -95,6 +98,8 @@ class AIAnalyzer:
         self.analysis_config = analysis_config
         self.get_time_func = get_time_func
         self.debug = debug
+        self.structured_events = analysis_config.get("STRUCTURED_EVENTS", False)
+        self.allowed_event_urls = set()
 
         # 创建 AI 客户端（基于 LiteLLM）
         self.client = AIClient(ai_config)
@@ -167,6 +172,7 @@ class AIAnalyzer:
 
         # 准备新闻内容并获取统计数据
         prepared = self._prepare_news_content(stats, rss_stats)
+        self.allowed_event_urls = set(re.findall(r"原文:(https?://\S+)", prepared.rss_content))
         total_news = prepared.hotlist_total + prepared.rss_total
 
         if not prepared.news_content and not prepared.rss_content:
@@ -639,6 +645,18 @@ class AIAnalyzer:
             # 兜底：使用已提取的 json_str（不含 markdown 标记），避免推送中出现 ```json
             result.core_trends = json_str[:500] + "..." if len(json_str) > 500 else json_str
             result.success = False
+            return result
+
+        if getattr(self, "structured_events", False):
+            from trendradar.ai.engineering import render_events
+            try:
+                if not isinstance(data, dict):
+                    raise ValueError("分析响应必须为对象")
+                result.events, result.core_trends = render_events(
+                    data.get("events"), self.allowed_event_urls)
+                result.success = True
+            except ValueError as exc:
+                result.error = str(exc)
             return result
 
         # 解析成功，提取字段
