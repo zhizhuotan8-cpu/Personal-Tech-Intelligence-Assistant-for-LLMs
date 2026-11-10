@@ -100,18 +100,37 @@ class AIClient:
             if key not in params:
                 params[key] = value
 
-        # 调用 LiteLLM
-        response = completion(**params)
+        # LiteLLM retries transport/provider errors, but an HTTP-success response
+        # with no answer needs separate, bounded handling. Never use reasoning as
+        # the answer, and never log provider bodies or request credentials.
+        retries = min(2, max(0, int(params['num_retries'])))
+        for attempt in range(retries + 1):
+            response = completion(**params)
+            choices = getattr(response, 'choices', None) or []
+            choice = choices[0] if choices else None
+            message = getattr(choice, 'message', None)
+            content = getattr(message, 'content', None)
+            if isinstance(content, list):
+                content = "\n".join(
+                    item.get('text', '') for item in content
+                    if isinstance(item, dict) and item.get('type', 'text') in ('text', 'output_text')
+                    and isinstance(item.get('text'), str)
+                )
+            if isinstance(content, str) and content.strip():
+                return content
 
-        # 提取响应内容
-        # 某些模型/提供商返回 list（内容块）而非 str，统一转为 str
-        content = response.choices[0].message.content
-        if isinstance(content, list):
-            content = "\n".join(
-                item.get("text", str(item)) if isinstance(item, dict) else str(item)
-                for item in content
-            )
-        return content or ""
+            finish = getattr(choice, 'finish_reason', None)
+            # Only known protocol values are safe diagnostic output.
+            if finish not in ('stop', 'length', 'content_filter', 'tool_calls', 'function_call'):
+                finish = 'unknown'
+            usage = getattr(response, 'usage', None)
+            tokens = getattr(usage, 'completion_tokens', None)
+            token_label = str(tokens) if isinstance(tokens, int) else 'unknown'
+            details = f'finish_reason={finish}, completion_tokens={token_label}'
+            # Refusals and tool-only responses cannot be repaired by blind retry.
+            if finish in ('content_filter', 'tool_calls', 'function_call') or attempt == retries:
+                raise RuntimeError(f'AI 返回空响应（{details}，已尝试 {attempt + 1} 次）')
+            print(f'[AI] 正文为空（{details}），重试 {attempt + 1}/{retries}')
 
     def validate_config(self) -> tuple[bool, str]:
         """
