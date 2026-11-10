@@ -3,7 +3,8 @@
 import json
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+from datetime import datetime
 
 # Keep standalone test runs offline during LiteLLM's import.
 with patch.dict(os.environ, {"LITELLM_LOCAL_MODEL_COST_MAP": "True"}):
@@ -13,6 +14,30 @@ with patch.dict(os.environ, {"LITELLM_LOCAL_MODEL_COST_MAP": "True"}):
 
 
 class AnalysisResponseNormalizationTests(unittest.TestCase):
+    def test_invalid_or_empty_analysis_is_not_success(self):
+        for response in ('', '{}', '[]', 'not json', '{"unknown": "text"}'):
+            with self.subTest(response=response):
+                result = AIAnalyzer.__new__(AIAnalyzer)._parse_response(response)
+                self.assertFalse(result.success)
+                self.assertTrue(result.error)
+
+    def test_timeout_and_no_content_are_distinct(self):
+        from trendradar.core import load_config
+        config = load_config()
+        analyzer = AIAnalyzer(config["AI"], config["AI_ANALYSIS"], datetime.now)
+        analyzer.client = MagicMock()
+        analyzer.client.api_key = "test-only"
+        empty = analyzer.analyze([])
+        self.assertTrue(empty.skipped)
+        analyzer.client.chat.assert_not_called()
+        with patch.object(analyzer, "_call_ai", side_effect=TimeoutError("test timeout")):
+            failed = analyzer.analyze([], rss_stats=[{"word": "Agent", "titles": [
+                {"title": "Tool calling update", "url": "https://example.com/update"}
+            ]}])
+        self.assertFalse(failed.success)
+        self.assertFalse(failed.skipped)
+        self.assertIn("test timeout", failed.error)
+
     def test_string_is_preserved(self):
         self.assertEqual(_coerce_analysis_text("summary"), "summary")
         self.assertEqual(_coerce_analysis_text("  中文\n"), "  中文\n")

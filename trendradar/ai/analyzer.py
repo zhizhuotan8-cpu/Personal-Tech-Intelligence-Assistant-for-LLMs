@@ -146,7 +146,7 @@ class AIAnalyzer:
         model = self.ai_config.get("MODEL", "unknown")
         api_key = self.client.api_key or ""
         api_base = self.ai_config.get("API_BASE", "")
-        masked_key = f"{api_key[:5]}******" if len(api_key) >= 5 else "******"
+        masked_key = "已配置" if api_key else "未配置"
         model_display = model.replace("/", "/\u200b") if model else "unknown"
 
         print(f"[AI] 模型: {model_display}")
@@ -604,7 +604,7 @@ class AIAnalyzer:
         if not json_str:
             result.error = "提取的 JSON 内容为空"
             result.core_trends = response[:500] + "..." if len(response) > 500 else response
-            result.success = True
+            result.success = False
             return result
 
         # 第一步：标准 JSON 解析
@@ -638,7 +638,7 @@ class AIAnalyzer:
                 result.error = "JSON 解析失败"
             # 兜底：使用已提取的 json_str（不含 markdown 标记），避免推送中出现 ```json
             result.core_trends = json_str[:500] + "..." if len(json_str) > 500 else json_str
-            result.success = True
+            result.success = False
             return result
 
         # 解析成功，提取字段
@@ -656,10 +656,14 @@ class AIAnalyzer:
                     str(k): str(v) for k, v in summaries.items()
                 }
 
-            result.success = True
+            result.success = any((result.core_trends, result.sentiment_controversy,
+                                  result.signals, result.rss_insights,
+                                  result.outlook_strategy, result.standalone_summaries))
+            if not result.success:
+                result.error = "AI 返回的分析内容为空"
         except (KeyError, TypeError, AttributeError) as e:
             result.error = f"字段提取错误: {type(e).__name__}: {e}"
             result.core_trends = json_str[:500] + "..." if len(json_str) > 500 else json_str
-            result.success = True
+            result.success = False
 
         return result
