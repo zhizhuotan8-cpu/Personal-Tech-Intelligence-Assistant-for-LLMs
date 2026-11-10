@@ -2,7 +2,7 @@
 from urllib.parse import urlsplit, urlunsplit
 
 
-def render_events(events, allowed_urls):
+def render_events(events, allowed_urls, evidence=None):
     if not isinstance(events, list):
         raise ValueError("events 必须为数组")
     selected, seen_urls, seen_titles = [], set(), set()
@@ -27,5 +27,6 @@ def render_events(events, allowed_urls):
             break
     blocks = []
     for i, event in enumerate(selected, 1):
-        blocks.append(f"{i}）{event['title']}\n事实：{event['facts']}\n工程影响（推断）：{event['impact']}\n验证建议：{event['suggestion']}\n证据范围：仅标题，细节待原文核验\n原始出处：{event['url']}")
+        scope = (evidence or {}).get(event["url"], "仅标题，细节待原文核验")
+        blocks.append(f"{i}）{event['title']}\n事实：{event['facts']}\n工程影响（推断）：{event['impact']}\n验证建议：{event['suggestion']}\n证据范围：{scope}\n原始出处：{event['url']}")
     return selected, '\n\n'.join(blocks) or '暂无值得推荐的更新。'

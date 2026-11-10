@@ -341,6 +341,7 @@ class AIFilter:
         # 构建新闻列表文本
         news_list = "\n".join(
             f"{t['id']}. [{t.get('source', '')}] {t['title']}"
+            + (f" | RSS摘要（非全文）:{t['summary'][:500]}" if t.get("summary") else "")
             for t in titles
         )
 

@@ -100,6 +100,7 @@ class AIAnalyzer:
         self.debug = debug
         self.structured_events = analysis_config.get("STRUCTURED_EVENTS", False)
         self.allowed_event_urls = set()
+        self.event_evidence = {}
 
         # 创建 AI 客户端（基于 LiteLLM）
         self.client = AIClient(ai_config)
@@ -172,6 +173,11 @@ class AIAnalyzer:
 
         # 准备新闻内容并获取统计数据
         prepared = self._prepare_news_content(stats, rss_stats)
+        self.event_evidence = {
+            t.get("url"): "标题及 RSS 摘要（可能截断，非网页全文）"
+            for group in (rss_stats or []) for t in group.get("titles", [])
+            if isinstance(t, dict) and t.get("summary")
+        }
         self.allowed_event_urls = set(re.findall(r"原文:(https?://\S+)", prepared.rss_content))
         total_news = prepared.hotlist_total + prepared.rss_total
 
@@ -377,6 +383,8 @@ class AIAnalyzer:
                         url = t.get("url", "")
                         if url:
                             line += f" | 原文:{url}"
+                        if t.get("summary"):
+                            line += f"\n  RSS摘要（非全文，可能截断）:{str(t['summary'])[:500]}"
                         rss_lines.append(line)
 
                         rss_count += 1
@@ -653,7 +661,7 @@ class AIAnalyzer:
                 if not isinstance(data, dict):
                     raise ValueError("分析响应必须为对象")
                 result.events, result.core_trends = render_events(
-                    data.get("events"), self.allowed_event_urls)
+                    data.get("events"), self.allowed_event_urls, getattr(self, "event_evidence", {}))
                 result.success = True
             except ValueError as exc:
                 result.error = str(exc)

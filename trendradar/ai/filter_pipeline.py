@@ -328,7 +328,7 @@ class AIFilterPipeline:
                 time.sleep(batch_interval)
             batch = pending_news[i:i + batch_size]
             titles_for_ai = [
-                {"id": n["id"], "title": n["title"], "source": n.get("source_name", "")}
+                {"id": n["id"], "title": n["title"], "source": n.get("source_name", ""), "summary": n.get("summary", "")}
                 for n in batch
             ]
             batch_results = ai_filter.classify_batch(titles_for_ai, active_tags, interests_content)
@@ -350,7 +350,7 @@ class AIFilterPipeline:
                 time.sleep(batch_interval)
             batch = pending_rss[i:i + batch_size]
             titles_for_ai = [
-                {"id": n["id"], "title": n["title"], "source": n.get("source_name", "")}
+                {"id": n["id"], "title": n["title"], "source": n.get("source_name", ""), "summary": n.get("summary", "")}
                 for n in batch
             ]
             batch_results = ai_filter.classify_batch(titles_for_ai, active_tags, interests_content)
@@ -438,6 +438,7 @@ class AIFilterPipeline:
                 "title": title,
                 "source_id": r.get("source_id", ""),
                 "source_name": r.get("source_name", ""),
+                "summary": r.get("summary", ""),
                 "url": r.get("url", ""),
                 "mobile_url": r.get("mobile_url", ""),
                 "rank": r.get("rank", 0),
@@ -560,6 +561,7 @@ class AIFilterPipeline:
                 title_entry = {
                     "title": item.get("title", ""),
                     "source_name": item.get("source_name", ""),
+                    "summary": item.get("summary", ""),
                     "url": item.get("url", ""),
                     "mobile_url": item.get("mobile_url", ""),
                     "ranks": item.get("ranks", []),
