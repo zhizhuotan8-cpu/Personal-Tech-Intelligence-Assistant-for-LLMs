@@ -44,10 +44,21 @@ def render_report(state):
         if practical and not title.startswith('实践阅读'):
             title = '实践阅读｜' + title
         scope = state.get('evidence', {}).get(url, '仅标题，待核验')
+        metadata = state.get('article_metadata', {}).get(url, {})
+        date = metadata.get('published_at')
+        if practical:
+            catalog_article = url.startswith(('https://www.anthropic.com/', 'https://haystack.deepset.ai/tutorials/', 'https://langfuse.com/guides/cookbook/'))
+            date_label = ('目录标注日期：' + date) if date and catalog_article else '原始发布日期：未核实'
+        else:
+            date_label = ('来源标注日期：' + date) if date else '原始发布日期：未知'
+        recommendation = '此前已推荐 · 兼容性风险复查' if metadata.get('previously_recommended') else '本次新增推荐'
+        if state.get('demo'):
+            recommendation = '样本演示'
         if practical and '原始发布日期' not in scope:
             scope += '；订阅时间不代表原始发布日期'
         link = f'<a href="{esc(url)}" target="_blank" rel="noopener noreferrer">阅读原文 ↗</a>' if url.startswith(('https://', 'http://')) else ''
         cards.append(f'''<article><h2>{esc(title)}</h2>
+<small>{esc(recommendation)} · {esc(date_label)}</small>
 <p><b>发生了什么</b><br>{esc(event['facts'])}</p>
 <p><b>工程影响 · 推断</b><br>{esc(event['impact'])}</p>
 <p><b>验证建议</b><br>{esc(event['suggestion'])}</p>
@@ -86,6 +97,32 @@ def balanced_candidates(items, limit):
     return selected
 
 
+def previous_recommendations(directory):
+    """Only completed real reports count as recommendations, never as read receipts."""
+    urls = set()
+    for path in directory.parent.glob('*/status.json'):
+        try:
+            report = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if report.get('status') == '成功生成' and not report.get('demo'):
+            urls.update(event['url'] for event in report.get('events', []) if event.get('url'))
+    return urls
+
+
+def filter_recommended(items, seen):
+    # Repeated compatibility notices remain eligible for the model's risk assessment.
+    risk_words = ('breaking', 'deprecat', 'sunset', 'end of life', 'removal',
+                  'migration', '不兼容', '弃用', '下线', '破坏性')
+    kept = []
+    for item in items:
+        repeated = item['url'] in seen
+        text = (item['title'] + ' ' + (item.get('summary') or '')).lower()
+        if not repeated or any(word in text for word in risk_words):
+            kept.append(dict(item, previously_recommended=repeated))
+    return kept
+
+
 def collect_and_analyze(config, state, directory, full_evidence=False):
     ai = config['AI']
     if not ai.get('API_KEY'):
@@ -120,13 +157,22 @@ def collect_and_analyze(config, state, directory, full_evidence=False):
             candidates.append(dict(title=item.title, source=item.feed_name, source_name=item.feed_name,
                                    url=item.url, summary=item.summary, time_display=item.published_at))
     limit = config['AI_ANALYSIS'].get('MAX_NEWS_FOR_ANALYSIS',80)
+    seen = previous_recommendations(directory)
+    before = len(candidates)
+    candidates = filter_recommended(candidates, seen)
+    state['skipped_recommended'] = before - len(candidates)
+    state['article_metadata'] = {
+        item['url']: dict(published_at=item['time_display'],
+                          previously_recommended=item['previously_recommended'])
+        for item in candidates
+    }
     candidates = balanced_candidates(candidates, limit)
     for index,item in enumerate(candidates,1):
         item['id'] = index
     (directory/'sources.json').write_text(json.dumps([asdict(item) for items in data.items.values() for item in items],ensure_ascii=False,indent=2),encoding='utf-8')
     state['candidate_count'] = len(candidates)
     if not candidates:
-        state.update(status='本次无值得推荐的更新',message='新鲜度范围内暂无可分析条目，可稍后重新运行。')
+        state.update(status='本次无值得推荐的更新',message=f'暂无新的可分析条目，已跳过 {state["skipped_recommended"]} 条此前推荐内容。')
         return
     print(f'[2/3] AI 筛选 {len(candidates)} 条近期内容...',flush=True)
     interests = Path('config',(config['AI_FILTER'].get('INTERESTS_FILE') or 'ai_interests.txt')).read_text(encoding='utf-8')
@@ -151,7 +197,7 @@ def collect_and_analyze(config, state, directory, full_evidence=False):
     result = analyzer.analyze([],rss_stats=[dict(word='工程情报',titles=selected)],report_type='手动真实预览')
     if not result.success:
         raise RuntimeError('AI 简报生成失败：'+result.error)
-    state.update(events=result.events,evidence=analyzer.event_evidence,status='成功生成' if result.events else '本次无值得推荐的更新',message='模型未选出值得推荐的事件。')
+    state.update(events=result.events,evidence=analyzer.event_evidence,status='成功生成' if result.events else '本次无值得推荐的更新',message='' if result.events else '模型未选出值得推荐的事件。')
 
 
 def run_preview(demo=False, no_open=False, full_evidence=False, days=None):

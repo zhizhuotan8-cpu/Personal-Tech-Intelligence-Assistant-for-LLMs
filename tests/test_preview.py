@@ -6,6 +6,25 @@ from unittest.mock import patch
 from trendradar.preview import run_preview, render_report
 
 class PreviewTests(unittest.TestCase):
+    def test_recommendations_skip_duplicates_but_keep_risk_notices(self):
+        from trendradar.preview import filter_recommended
+        items = [dict(url='old',title='Tutorial'),
+                 dict(url='risk',title='Breaking API migration'),
+                 dict(url='new',title='New tutorial')]
+        result = filter_recommended(items, {'old','risk'})
+        self.assertEqual([item['url'] for item in result], ['risk','new'])
+        self.assertTrue(result[0]['previously_recommended'])
+
+    def test_only_successful_real_reports_seed_history(self):
+        from trendradar.preview import previous_recommendations
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name, status, demo in [('real','成功生成',False),('demo','成功生成',True),('failed','运行失败',False)]:
+                directory = root/name
+                directory.mkdir()
+                (directory/'status.json').write_text(json.dumps(dict(status=status,demo=demo,events=[dict(url=name)])),encoding='utf-8')
+            self.assertEqual(previous_recommendations(root/'next'), {'real'})
+
     def test_practice_is_not_presented_as_new_release(self):
         event = dict(title='检索方法', facts='事实', impact='推断', suggestion='建议', url='https://www.langchain.com/blog/test')
         text = render_report(dict(status='成功生成',generated_at='now',events=[event]))
