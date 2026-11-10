@@ -1,0 +1,56 @@
+# 大模型应用工程情报助手（第一版）
+
+默认配置已切换为行业 RSS + AI 兴趣分类 + 中文技术简报。综合热榜停止采集。
+
+## 关注范围
+
+Agent 40%、RAG 30%、模型/API 20%、部署 10% 是提示词中的选稿倾向，不是程序统计配额。LangChain、LangGraph、Deep Agents 优先，LlamaIndex 与 Hugging Face 补充 RAG 和工程实践。简报要求在“重点更新”和“工程实践”中合计选最多 5 个事件，由模型遵循提示词；目前没有程序级条数校验。筛选后的 RSS 原始列表仍会保留，不受五条限制。
+
+配置入口：
+
+- `config/config.yaml`：17 个 RSS/Atom 来源、AI 与推送设置。
+- `config/ai_interests.txt`：四类主题与排除规则。
+- `config/ai_engineering_prompt.txt`：工程影响、验证方向、出处与证据限制。
+- `config/frequency_words.txt`：无模型时手动切换 `filter.method: keyword` 的备用规则，不等价于 AI 分类。
+- `config/timeline.yaml`：`ai_engineering_daily` 日报时段。
+
+## 来源与覆盖边界
+
+2026-11-10 联网检查配置中 17 个源均返回 HTTP 200 且有可解析条目。HTTP 成功不保证后续持续更新。没有条目的 Release 源未用作国内模型的主要来源。
+
+| 关注对象 | 当前采集方式 | 覆盖限制 |
+|---|---|---|
+| Qwen | 官方博客 | 以博客发布为准 |
+| DeepSeek、GLM、Kimi、MiniMax、混元 | 对应官方模型仓库的 main 提交 Atom | 固定项目补充源，不能自动发现厂商新仓库、新模型或全部 API 公告；普通提交会被筛选 |
+| 文心 | ERNIE 官方仓库 Releases | 开源项目更新，不覆盖全部商业 API 公告 |
+| 豆包 | 火山引擎 Python SDK Releases | 广泛云服务 SDK，仅保留模型相关标题，不覆盖全部豆包公告 |
+| GPT | OpenAI 官方新闻 RSS | 产品公告包含非 GPT 内容，需筛选 |
+| Claude、Gemini、Grok | 各自官方 Python SDK Releases | SDK 发布不等同于模型发布；厂商公告网页尚未接入 |
+| LangChain、LangGraph、Deep Agents、LlamaIndex | 官方仓库 Releases | 只有版本号时可能被低分过滤，避免猜测功能 |
+| 工程实践 | Hugging Face 博客 | 包含社区作者，官方托管不代表独立验证 |
+
+全部精确 URL 见 `rss.feeds`。国内模型和海外 SDK 源是第一版可用覆盖，不能当作完整模型公告监控。后续应补厂商公告网页适配和新项目发现，避免固定模型仓库过时。
+
+## 运行
+
+在仓库目录使用 PowerShell：
+
+```powershell
+$env:AI_API_KEY = '你的密钥'
+$env:AI_MODEL = '提供商/你实际可用的模型名'
+.\.venv\Scripts\python.exe -m trendradar
+```
+
+`AI_MODEL` 是执行筛选和简报的模型，与订阅对象无关。建议显式设置可用模型，配置文件中的默认名称不保证账号可用。也可按已有配置设置 `AI_API_BASE`。不要把真实密钥提交到仓库。
+
+调度按北京时间全天采集，19:00–23:00 内首次执行时分析并推送一次。调度配置本身不会启动常驻进程；需现有 Docker cron、GitHub Actions 或 Windows 任务计划定时调用，至少覆盖晚间窗口。单次本地运行在窗口外只采集，不生成 AI 简报；手动预览可暂时关闭 `schedule.enabled`，并关闭 `notification.enabled` 后执行。实际推送还需配置渠道凭据。跨运行去重依赖保留存储数据。
+
+## 当前能力与后续工作
+
+已完成：来源配置、按兴趣标题筛选、中文日报提示词、分析输入保留原始链接、晚间单次汇总规则。没有调用付费模型或发送消息作为配置验证。
+
+当前分析只接收标题、来源、时间和链接，不读取全文。提示词强制说明证据范围；不能据此声称已验证性能或迁移细节。事件合并目前依赖模型提示词，尚无持久化事件聚类。简报沿用现有报告板块名称，因此部分标题仍显示“舆论风向”等原有文字。
+
+后续依次补：厂商公告网页采集与正文提取、程序级事件去重与五条上限、独立兼容性告警、收藏反馈、每周专题和带版本/核验时间的长期知识库。当前 `signals` 只是日报提醒栏目，不会在日报窗口之外单独发告警。
+
+连续使用两周后，用有用内容占比、重复率、每日阅读时间、遗漏更新调整来源与偏好。

@@ -1,0 +1,13 @@
+# Python environment and runtime caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local credentials
+.env
+.env.*
+!.env.example
+
+# Generated reports and local databases (already tracked files stay tracked)
+output/
