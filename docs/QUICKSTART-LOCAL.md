@@ -41,3 +41,5 @@
 - 浏览器没有弹出：手动打开 `output/preview/latest.html`。
 
 首次运行耗时取决于 RSS 网络和模型速度。网页摘要及厂商原文未经独立核验，建议小规模验证后再应用。
+
+新增实践目录：Anthropic Engineering、Haystack Tutorials、Langfuse Cookbook。它们的历史教程作为“实践阅读”参与筛选，不受 --days 动态窗口限制；未知原始发布日期不会填成今天。默认用目录简介，--full-evidence 可尝试获取入选文章正文摘录。候选有总量上限，按来源轮流取样。

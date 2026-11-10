@@ -9,7 +9,7 @@ from urllib.parse import urlsplit, urljoin
 
 import requests
 
-HOSTS = {'github.com', 'openai.com', 'huggingface.co', 'qwenlm.github.io', 'www.langchain.com', 'weaviate.io'}
+HOSTS = {'github.com', 'openai.com', 'huggingface.co', 'qwenlm.github.io', 'www.langchain.com', 'weaviate.io', 'www.anthropic.com', 'haystack.deepset.ai', 'langfuse.com'}
 
 
 class ArticleParser(HTMLParser):

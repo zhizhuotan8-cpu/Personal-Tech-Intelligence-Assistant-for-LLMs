@@ -118,7 +118,15 @@ class RSSFetcher:
                     ):
                         raise
 
-            parsed_items = self.parser.parse(response.text, feed.url)
+            from .catalogs import CATALOGS, parse_catalog, save_catalog_snapshot
+            if feed.url in CATALOGS:
+                parsed_items = parse_catalog(response.text, feed.url)
+                try:
+                    save_catalog_snapshot(feed.url, parsed_items)
+                except OSError:
+                    print(f"[实践目录] {feed.name}: 无法保存目录快照，本次仍使用采集结果")
+            else:
+                parsed_items = self.parser.parse(response.text, feed.url)
 
             # 限制条目数量（0=不限制）
             if feed.max_items > 0:

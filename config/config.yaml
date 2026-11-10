@@ -127,6 +127,25 @@ rss:
   # - 正整数：覆盖全局设置，只推送此天数内的文章
   # - 0：禁用此频道的新鲜度过滤，推送所有文章
   feeds:
+    # 官方实践目录适配器；无原始日期时作为实践阅读，不伪造发布时间。
+    - id: "anthropic-engineering"
+      name: "Anthropic Engineering 实践阅读"
+      url: "https://www.anthropic.com/engineering"
+      max_items: 12
+      max_age_days: 0
+
+    - id: "haystack-tutorials"
+      name: "Haystack RAG 与 Agent 教程"
+      url: "https://haystack.deepset.ai/tutorials"
+      max_items: 12
+      max_age_days: 0
+
+    - id: "langfuse-cookbook"
+      name: "Langfuse 评测与排障 Cookbook"
+      url: "https://langfuse.com/guides/cookbook"
+      max_items: 12
+      max_age_days: 0
+
     # 优先读取工程实践；厂商案例仍须通过工程价值过滤。
     - id: "langchain-practice"
       name: "LangChain 工程实践与评测"

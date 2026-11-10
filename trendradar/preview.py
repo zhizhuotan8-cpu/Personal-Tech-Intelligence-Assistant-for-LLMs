@@ -1,4 +1,5 @@
 """Manual local preview: isolated from scheduled runs and notifications."""
+from trendradar.crawler.rss.catalogs import PRACTICE_PREFIXES, CATALOGS
 import html
 import json
 import os
@@ -38,7 +39,7 @@ def render_report(state):
     cards = []
     for event in state.get('events', []):
         url = event['url']
-        practical = url.startswith(('https://www.langchain.com/blog/', 'https://weaviate.io/blog/'))
+        practical = url.startswith(PRACTICE_PREFIXES)
         title = event['title']
         if practical and not title.startswith('实践阅读'):
             title = '实践阅读｜' + title
@@ -60,8 +61,29 @@ def render_report(state):
 <title>工程情报 · 本地预览</title><style>
 body{{margin:0;background:#f4f6fa;color:#172438;font:16px/1.7 "Segoe UI","Microsoft YaHei",sans-serif}}main{{max-width:920px;margin:48px auto;padding:0 24px}}header{{border-bottom:2px solid #28716b;padding-bottom:24px}}h1{{font-size:34px;margin:8px 0}}h2{{font-size:22px}}.label,small{{color:#557079}}article{{background:white;border:1px solid #dce4ec;border-radius:16px;padding:24px 30px;margin:22px 0;overflow-wrap:anywhere}}a{{color:#126a62}}.warning{{padding:14px;background:#fff0d6;border-radius:8px}}footer{{color:#637487;font-size:14px;margin:32px 0}}b{{color:#32615d}}p{{white-space:pre-wrap}}
 </style><main><header><div class="label">LLM ENGINEERING RADAR / 本地预览</div><h1>近期值得关注的工程情报</h1><div>{esc(state['status'])} · {esc(state['generated_at'])}</div>
-<div>来源成功 {state.get('source_success',0)} / 失败 {len(failures)} · 近 {state.get('days',3)} 天 · 精选 {len(state.get('events',[]))} 条 · 用时 {state.get('elapsed_seconds',0)} 秒</div></header>{demo}{warning}{''.join(cards)}
+<div>来源成功 {state.get('source_success',0)} / 失败 {len(failures)} · 近 {state.get('days',3)} 天动态 + 实践阅读 · 精选 {len(state.get('events',[]))} 条 · 用时 {state.get('elapsed_seconds',0)} 秒</div></header>{demo}{warning}{''.join(cards)}
 <footer>关注 Agent、RAG、模型/API 与部署。工程影响与建议供小规模验证，原文事实仍需核对。<br>此入口只生成本地预览，不发送通知。每次运行保留独立报告。</footer></main></html>'''
+
+
+def balanced_candidates(items, limit):
+    from collections import deque
+    groups = {}
+    seen = set()
+    for item in items:
+        url = item.get('url')
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        groups.setdefault(item.get('source',''),deque()).append(item)
+    selected = []
+    while groups and len(selected) < limit:
+        for source in list(groups):
+            selected.append(groups[source].popleft())
+            if not groups[source]:
+                del groups[source]
+            if len(selected) >= limit:
+                break
+    return selected
 
 
 def collect_and_analyze(config, state, directory, full_evidence=False):
@@ -98,7 +120,7 @@ def collect_and_analyze(config, state, directory, full_evidence=False):
             candidates.append(dict(title=item.title, source=item.feed_name, source_name=item.feed_name,
                                    url=item.url, summary=item.summary, time_display=item.published_at))
     limit = config['AI_ANALYSIS'].get('MAX_NEWS_FOR_ANALYSIS',80)
-    candidates = list({item['url']:item for item in candidates if item['url']}.values())[:limit]
+    candidates = balanced_candidates(candidates, limit)
     for index,item in enumerate(candidates,1):
         item['id'] = index
     (directory/'sources.json').write_text(json.dumps([asdict(item) for items in data.items.values() for item in items],ensure_ascii=False,indent=2),encoding='utf-8')
@@ -149,7 +171,7 @@ def run_preview(demo=False, no_open=False, full_evidence=False, days=None):
             config = load_config()
             if days is not None:
                 config['RSS']['FRESHNESS_FILTER'] = dict(ENABLED=True,MAX_AGE_DAYS=days)
-                config['RSS']['FEEDS'] = [dict(feed,max_age_days=days) for feed in config['RSS']['FEEDS']]
+                config['RSS']['FEEDS'] = [dict(feed,max_age_days=0 if feed.get('url') in CATALOGS else days) for feed in config['RSS']['FEEDS']]
             state['days'] = config['RSS'].get('FRESHNESS_FILTER',{}).get('MAX_AGE_DAYS',3)
             collect_and_analyze(config,state,directory,full_evidence)
     except Exception as exc:
