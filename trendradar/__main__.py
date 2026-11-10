@@ -927,8 +927,8 @@ class NewsAnalyzer:
         now = self.ctx.get_time()
         print(f"当前北京时间: {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
-        if not self.ctx.config["ENABLE_CRAWLER"]:
-            print("爬虫功能已禁用（ENABLE_CRAWLER=False），程序退出")
+        if not self.ctx.config["ENABLE_CRAWLER"] and not self.ctx.rss_enabled:
+            print("热榜和 RSS 采集均已禁用，程序退出")
             return False
 
         has_notification = self._has_notification_configured()
@@ -1617,7 +1617,10 @@ class NewsAnalyzer:
             mode_strategy = self._get_mode_strategy()
 
             # 抓取热榜数据
-            results, id_to_name, failed_ids = self._crawl_data()
+            if self.ctx.config["ENABLE_CRAWLER"]:
+                results, id_to_name, failed_ids = self._crawl_data()
+            else:
+                results, id_to_name, failed_ids = {}, {}, []
 
             # 抓取 RSS 数据（如果启用），返回统计条目、新增条目和原始条目
             rss_items, rss_new_items, raw_rss_items, rss_new_urls = self._crawl_rss_data()
