@@ -287,6 +287,7 @@ def _load_ai_analysis_config(config_data: Dict) -> Dict:
         "MODE": ai_config.get("mode", "follow_report"),
         "MAX_NEWS_FOR_ANALYSIS": ai_config.get("max_news_for_analysis", 50),
         "STRUCTURED_EVENTS": ai_config.get("structured_events", False),
+        "FETCH_EVIDENCE": ai_config.get("fetch_evidence", False),
         "INCLUDE_RSS": ai_config.get("include_rss", True),
         "INCLUDE_RANK_TIMELINE": ai_config.get("include_rank_timeline", False),
         "INCLUDE_STANDALONE": ai_config.get("include_standalone", False),

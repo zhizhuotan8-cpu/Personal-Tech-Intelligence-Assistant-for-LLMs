@@ -460,6 +460,7 @@ ai:
 # 9. AI 分析功能（模型配置见上方 ai 段）
 # ===============================================================
 ai_analysis:
+  fetch_evidence: true                # 分析前抓取最多五个原文页面，失败降级
   structured_events: true             # 程序校验事件、原文链接并限制最多五条
   enabled: true                     # 是否启用 AI 分析（true=启用, false=关闭）—— 总开关
                                     # 开启 schedule 后此项仍为总开关：false=永远不分析，true=由调度控制
