@@ -1,129 +1,138 @@
 # 工作交接：大模型应用工程情报助手
 
-更新时间：2026-11-10（Asia/Shanghai）。本文用于在新的 Codex 对话中恢复上下文。
+更新时间：2026-11-10（Asia/Shanghai）。本文件用于新对话恢复工作；实现以仓库当前代码为准。
 
-## 1. 用户目标与已确认偏好
+## 1. 新对话先做什么
 
-用户是大模型应用开发工程师，希望基于 TrendRadar 减少追踪技术更新的时间，把综合热点工具改为个人行业情报助手。
+1. 读取本文；启动与使用见 `docs/QUICKSTART-LOCAL.md`，交付顺序见 `docs/DELIVERY_PLAN.md`。需要功能演进细节时再读 `docs/ai-engineering-radar.md`，其中早期段落有历史状态，应结合后续记录和代码判断。
+2. 检查 `git status --short`、当前分支、最新提交，保留下面列出的既有用户改动。核实远程状态后重试未推送提交。
+3. 用户最新开发要求“先接入第一批实践渠道”已完成并经过真实运行验证。当前请求仅为生成交接文档；下一阶段依据用户新要求执行，不自行重启全部长期规划。
 
-- 国内模型：通义千问/Qwen、DeepSeek、智谱/GLM、Kimi、豆包、MiniMax、文心/ERNIE、混元等，可扩充。
-- 海外模型：GPT、Claude（用户曾写 cluade）、Gemini、Grok。
-- 核心框架：LangChain、LangGraph、Deep Agents（用户写 deepagent，当前对应 langchain-ai/deepagents）。
-- 内容倾向：Agent 40%、RAG 30%、模型/API 20%、部署 10%。这是选稿偏好，不是严格每日配额。
-- 每日日报精选最多 5 条，分为重点更新和工程实践；解释变化、工程影响、验证建议，附原始出处。
-- 降低融资、财报、人事、营销、泛科技、重复转载、缺少实验条件的跑分宣传的优先级。
-- 重点关注模型/API 弃用、下线与框架破坏性变更。
-- 用户已要求：代码修改后提交到指定 GitHub 仓库。后续相关改动继续 commit + push，不需要重复询问是否连接仓库。
+## 2. 用户目标和工作偏好
 
-原始项目说明位于 `C:\Users\猿王\Desktop\项目说明.txt`，已阅读，仅作为项目背景；仓库实现才是当前行为依据。
+用户是大模型应用开发工程师，希望减少追踪技术更新的时间。项目基于 TrendRadar，已从综合热点改成个人工程情报助手。
 
-## 2. 工作目录、Git 与发布状态
+- Agent 40%、RAG 30%、模型/API 20%、部署 10% 为选稿倾向，不是每日硬配额。
+- 关注 LangChain、LangGraph、Deep Agents；国内模型包含 Qwen、DeepSeek、GLM、Kimi、豆包、MiniMax、ERNIE、混元；海外包含 GPT、Claude、Gemini、Grok。
+- 最近明确偏好：尽快看到能运行的产品、更多实用信息；优先教程、排障、评测、可复现代码和有细节的生产实践，降低一般产品公告、营销和零碎 SDK 更新。
+- 每份最多五条；保留重大兼容性、弃用和下线风险；提供变化、工程影响、验证建议与原始出处。
+- 已持续授权代码改动验证后 commit + push 至指定 GitHub 仓库，无需重复询问。提交说明使用简短中文，说明本阶段做了什么。
+- 不要再连续只做底层增强却不交付可查看结果。沿用 Python + HTML，暂缓多 Agent、向量数据库、周报、知识库和云部署。
 
-- 工作目录：`F:\AgentProject\LLM_last\TrendRadar`
-- Shell：PowerShell；Python 虚拟环境：`.venv\Scripts\python.exe`。
+## 3. 环境、Git 与待推送状态
+
+- 工作区：`F:\AgentProject\LLM_last\TrendRadar`，PowerShell，Python：`.venv\Scripts\python.exe`。
 - 用户仓库：https://github.com/zhizhuotan8-cpu/Personal-Tech-Intelligence-Assistant-for-LLMs
-- `origin`：上述用户仓库；`upstream`：https://github.com/sansan0/TrendRadar.git
-- 当前本地分支：`codex/personal-tech-intelligence`，跟踪 `origin/main`。
-- 交接文档创建前，已推送功能提交：`a2235ce09c6e631feb15eb779a8fa8263874f406`。
-- 原本地 `master` 仍保留上游历史及首次功能提交 `9d479d14`，不应强制覆盖或删除。
-- 后续推送可用 `git push origin HEAD:main`。本地分支与远程分支名称不同，不要假定无参数 `git push` 一定成功。
+- 当前分支：`codex/personal-tech-intelligence`，跟踪 `origin/main`；推送使用 `git push origin HEAD:main`，不要依赖同名分支默认规则。
+- `upstream` 为原 TrendRadar；本地 `master` 保留上游历史，保持原样。
+- 本文更新前功能 HEAD：`f4e22c9e`（接入三类官方实践目录，保留日期并均衡来源）。本文自身提交会改变 HEAD。
+- 本地追踪的 `origin/main` 停在 `9a756dc9`；这只是上次已知远程状态，开始工作时重新核对。
+- 尚未确认推送成功的功能提交：`41f3ef98`（工程实践来源与历史阅读标注）、`f4e22c9e`（第一批三类官方实践目录）。后续正常推送会一起上传。
+- GitHub 间歇性连接重置/443 超时；此前有重试成功，也有连续两次失败。`git -c http.version=HTTP/1.1 push origin HEAD:main` 曾成功，最近两次仍失败。不要报告未确认的推送成功，不关闭 TLS 校验或强制覆盖远程。
+- 用户仓库初始快照与上游历史分离：上游历史 README 中 Slack 示例触发 Push Protection，曾通过无父提交快照发布；当前示例已改成 example.com，保留 GPL-3.0。不要重新混入被拒绝的上游历史。
 
-用户仓库最初为空。第一次试图连同上游历史推送，被 GitHub Push Protection 拒绝：上游 README 历史中的 Slack Webhook 示例触发密钥检测。已将当前中英文 README 的示例 URL 替换为 `https://example.com/slack-webhook`，通过 `git commit-tree` 创建无父提交的独立项目快照，再推送到 `main`，已确认远程 SHA 与本地一致。没有绕过密钥保护，也没有删除原本地历史。仓库保留原 GPL-3.0 LICENSE。
-
-### 必须保留的现有本地改动
-
-在本轮交接文档创建前，`git status --short` 为：
+必须保留的既有本地改动（本轮功能开始前即存在）：
 
 ```text
  M index.html
 ?? .python-version
 ```
 
-这两项在本次功能改造前就存在，来源未核实，未提交、未覆盖。不要使用 `git add .`、`git reset --hard` 或清理命令把它们混入提交或丢弃。已有输出数据库和 HTML 也是本地运行产物。
+仅暂存本轮实际完成的文件；避免 `git add .`、重置或清理这些文件。`output/` 是本地产物且被忽略，交接中的报告不会随 Git 上传。
 
-## 3. 第一版实际完成的内容
+## 4. 现在如何运行并查看
 
-| 文件 | 改动 |
-|---|---|
-| `config/config.yaml` | 停止综合热榜采集；17 个行业 RSS/Atom；`filter.method: ai`；日报模式；分析包含 RSS；最多分析 80 条；新鲜度 3 天；AI 简报优先显示 |
-| `config/ai_interests.txt` | 四类工程兴趣、模型与框架名单、标题筛选与排除规则 |
-| `config/ai_engineering_prompt.txt` | 新增技术简报提示词；最多 5 个事件、工程影响、原文出处、事实/建议区分、标题证据限制 |
-| `config/frequency_words.txt` | Agent、RAG、模型/API、部署的宽松关键词备用规则 |
-| `config/timeline.yaml` | 新增 `ai_engineering_daily` 预设；全天采集，19:00–23:00 窗口首次执行时分析/推送，启用 once |
-| `trendradar/ai/analyzer.py` | `_prepare_news_content` 为 RSS 条目传递原始 URL，供模型引用 |
-| `tests/test_engineering_sources.py` | 原文链接传递、无链接不编造、数量限制、禁用 RSS 的离线测试 |
-| `docs/ai-engineering-radar.md` | 使用说明、来源覆盖、运行方式与边界 |
-| `.gitignore` | 忽略虚拟环境、Python 缓存、本地 `.env` 与 `output/`；已经跟踪的旧输出文件仍在 Git 中 |
-| `README.md`、`README-EN.md` | Webhook 示例换成无敏感信息的占位 URL |
+最方便入口：双击 `start-preview.bat`，默认真实预览近七天动态及实践阅读，完成后自动打开 HTML。离线看页面用 `start-demo.bat`，显著标为样本演示。
 
-### 提示词与程序约束的区别
-
-- 40/30/20/10 目前只写在兴趣和分析提示词中，没有程序级配额。
-- 最多 5 条是模型输出要求，尚无结构化事件列表和程序级条数校验。
-- RSS 原始列表仍保留，可多于 5 条。
-- 同事件合并依赖模型提示词，尚未实现持久化事件聚类。
-- 分析输入只有标题、来源、时间与 URL；没有正文抓取，也没有让模型访问链接。
-- `signals` 是日报中的兼容性/弃用提醒栏目，不是独立实时告警。
-- 沿用原分析结果字段：`core_trends`、`sentiment_controversy`、`signals`、`rss_insights`、`outlook_strategy`、`standalone_summaries`。现有 HTML 和推送部分标题仍是通用舆情用语。
-
-## 4. 信息源现状
-
-2026-11-10 已联网核验配置中的 17 个地址均返回 HTTP 200，且 feedparser 能解析到条目。精确 URL 位于 `config/config.yaml` 的 `rss.feeds`。这只是当时的连通性和解析验证，不保证持续更新或完整覆盖。
-
-- Qwen：官方博客。
-- DeepSeek V3、GLM 4.5、Kimi K2、MiniMax M1、混元 A13B：对应官方仓库 main 提交 Atom。它们是固定项目补充源，不能自动发现后继新模型和新仓库。
-- ERNIE：官方仓库 Releases。
-- 豆包生态：火山引擎 Python SDK Releases；这是综合云服务 SDK，需要过滤无关更新。
-- GPT 等：OpenAI 官方新闻 RSS。
-- Claude、Gemini、Grok：各自官方 Python SDK Releases，不能等同于完整模型公告订阅。
-- LangChain、LangGraph、Deep Agents、LlamaIndex：官方 Releases。
-- Hugging Face：官方站点博客，包含社区作者，不代表所有文章经独立验证。
-
-曾检查 LangChain 博客 `/rss/`，虽 HTTP 200 但无可解析条目，未接入。若恢复此类来源，必须验证内容而非只看状态码。
-
-## 5. 验证与运行条件
-
-以下测试已通过，共 14 项：
+正式 CLI：
 
 ```powershell
 $env:LITELLM_LOCAL_MODEL_COST_MAP = 'True'
-.\.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_engineering_sources.py'
-.\.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_ai_analysis_response.py'
-.\.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_rss_total_count.py'
+$env:PYTHONIOENCODING = 'utf-8'
+.\.venv\Scripts\python.exe -m trendradar --preview --days 7 --no-open
+# 可选正文摘录，耗时更多：
+.\.venv\Scripts\python.exe -m trendradar --preview --days 7 --full-evidence --no-open
+.\.venv\Scripts\python.exe -m trendradar --demo --no-open
 ```
 
-另已完成配置加载、17 个 feed 读取、提示词加载，以及 12/19/22/23 点的调度边界检查。新改动范围内的 `git diff --check` 通过。全仓检查会报告原有 `index.html` 尾随空白，该文件尚未处理。
+- Windows 用户环境变量中已配置 `AI_API_KEY`、`AI_MODEL`、`AI_API_BASE`。当前进程可能未继承；`trendradar/preview.py` 的 `load_user_environment()` 会在进程变量缺失时补读用户变量。无需让用户重发密钥。普通正式日报入口不包含这项自动补读。
+- 真实模型调用已有用户授权，会产生正常 API 用量；不要输出密钥或把凭据落盘。配置文件默认模型名不能代表账号实际可用，按用户环境变量执行。
+- 预览绕过调度，不发送通知，不使用正式日报分类数据库/一次执行记录；默认仅标题和摘要，`--full-evidence` 才额外抓正文。
+- `output/preview/latest.html` 为最近一次运行页面，失败也会覆盖为失败页面；每次独立目录中有 `report.html`、`status.json`，真实运行还保存 `sources.json`。
+- 预览固定 Agent、RAG、模型/API、部署四类标签，不再调用模型提取标签，避免多一次调用和截断失败。每次重新筛选，不是正式日报增量缓存行为。
+- CLI 支持 `--days 1/3/7/14`，不指定时遵循配置；批处理入口显式使用 7。三个新增实践目录保留 `max_age_days: 0`，不被动态时间窗口排除。
+- 普通 `python -m trendradar` 仍为正式日报入口，受 19:00–23:00 晚间窗口控制；调度配置不会安装定时任务。尚未创建 Windows 计划任务，尚未配置通知渠道，不自动发送消息。
 
-未调用付费模型、未发送通知、未完成真实全链路简报质量验证。此前配置加载输出“未配置任何通知渠道”；不要假定用户已配置通知或定时启动。
+## 5. 已实现能力与代码入口
 
-运行需要用户实际可用的模型和密钥，通过环境变量配置：
+| 位置 | 当前行为 |
+|---|---|
+| `trendradar/preview.py` | 手动真实预览、离线演示、工程卡片 HTML、用户环境变量、明确成功/无更新/失败状态，失败退出码非零 |
+| `trendradar/__main__.py` | 预览 CLI；仅启用 RSS 时允许继续并跳过热榜采集 |
+| `trendradar/ai/engineering.py` | events 字段校验、输入 URL 白名单校验、同链接/标题去重、最多五条，生成兼容旧报告的正文 |
+| `trendradar/ai/analyzer.py` | 结构化简报、证据标签、RSS 摘要与可选正文输入；无效/空分析不再标成功 |
+| `trendradar/ai/filter.py` | 分类无效响应返回失败以便重试；有效空数组代表无匹配 |
+| `trendradar/storage/sqlite_mixin.py`、`ai/filter_pipeline.py` | 摘要从采集数据库贯通到分类和报告输入 |
+| `trendradar/ai/evidence.py` | HTTPS 站点白名单、有限跳转、超时/体积/摘录限制、24 小时成功缓存、失败降级 |
+| `trendradar/crawler/rss/catalogs.py` | 三个官方非 RSS 实践目录解析、站内链接去重、可见 time 日期、首次发现及目录变化快照 |
+| `trendradar/crawler/rss/fetcher.py` | 已知目录 URL 走目录适配器，其他来源继续 RSS/Atom；正式日报和预览共用 |
+| `config/ai_interests.txt`、`config/ai_engineering_prompt.txt` | 实用性优先、事实/推断/建议区分、旧教程作为实践阅读、禁止猜测版本及实验结果 |
+
+结构化模式由 `ai_analysis.structured_events` 控制，通用模式保持兼容。预览页面按工程语义显示，正式通用报告部分标题尚未改。五条为程序上限；排序由模型决定；跨文章语义去重没有持久化实现。
+
+## 6. 渠道现状：22 个配置来源
+
+原有 17 个：Qwen 博客；DeepSeek V3、GLM 4.5、Kimi K2、MiniMax M1、混元 A13B 指定仓库提交；ERNIE Releases；火山引擎 Python SDK Releases；OpenAI 新闻；Claude/Gemini/Grok SDK Releases；LangChain/LangGraph/Deep Agents/LlamaIndex Releases；Hugging Face 博客。
+
+已新增 5 个实践渠道（精确配置见 `rss.feeds`）：
+
+1. LangChain：`https://www.langchain.com/blog/rss.xml`，每次最多 20 条。
+2. Weaviate：`https://weaviate.io/blog/rss.xml`，每次最多 20 条。
+3. Anthropic：`https://www.anthropic.com/engineering`，目录适配器，每次最多 12 条。
+4. Haystack：`https://haystack.deepset.ai/tutorials`，目录适配器，每次最多 12 条。
+5. Langfuse：`https://langfuse.com/guides/cookbook`，目录适配器，每次最多 12 条。
+
+重要边界：
+
+- LangChain RSS 的近期时间可能来自迁移/更新；核验曾发现原文为历史教程。实践页面统一标记“实践阅读，订阅时间不代表原始发布日期”。
+- Anthropic 从目录可见 time 取日期；Haystack/Langfuse 缺失日期保留为空。首次发现不等于新发布。
+- `output/catalogs/<URL哈希>.json` 保存 first_seen、last_seen、changed_at 和标题/简介签名；不是正文版本归档，也尚未依据它发送变更通知。
+- 目录只读当前列表且按顺序截取，无翻页；结构变化导致零匹配时明确失败。预览候选按来源轮流取样后受 80 条上限约束。
+- 原国内固定仓库不能完整发现厂商新模型；SDK 源不等于模型公告订阅。Hugging Face 含社区作者。尚未接入公众号、知乎等综合社区。
+- LlamaIndex/Haystack 之前猜测的 RSS 返回 404，未接入这些地址；Haystack 现在走可靠目录。Qdrant RSS 排序不适合现有截取，未加入。
+
+## 7. 证据处理与质量限制
+
+- RSS 摘要约 500 字；目录简介标为非正文。正文通过可选抓取补充，每轮最多五个不同 URL，每页最多输入 6000 字符，按候选输入顺序获取。
+- 正文只支持 `evidence.py` 中的官方站点白名单，HTML 提取 article/main 并排除脚本/导航等；动态或不兼容页面会降级。
+- `output/evidence` 保存原始 URL、最终 URL、UTC 抓取时间、摘录、截断标记和响应哈希/失败原因，成功缓存 24 小时；不是完整 HTML 归档，尚无自动清理。
+- 输入内容都视为不可信数据。来源链接能校验，事实本身尚无自动独立验证。
+- 用户要求分析质量时，曾核对官方原文：主要发布事实有依据，但出现摘要截断遗漏重要破坏性变更、把局部 API 修复泛化、对旧行为和沙箱边界推断过度等问题。提示词已强化，不代表这些问题已根除。
+- 实用内容比例已提高，仍偏官方博客/版本公告；国内内容、RAG 深度实践和部署经验覆盖不足。预览缺少跨次已读/新增去重，七天窗口容易重复推荐。
+- `status.json` 成功时 message 仍可能保留“模型未选出…”的默认文本；页面有事件时不显示它。这是已知元数据小问题，判断结果优先看 status/events。
+
+## 8. 验证记录与可查看产物
+
+最新全量结果：60 项测试、54 个子场景通过。
 
 ```powershell
-$env:AI_API_KEY = '由用户在本地配置，不写进文档或提交'
-$env:AI_MODEL = '提供商/实际可用的模型名'
-# 如需兼容接口，再设置 AI_API_BASE。
-.\.venv\Scripts\python.exe -m trendradar
+$env:LITELLM_LOCAL_MODEL_COST_MAP = 'True'
+.\.venv\Scripts\python.exe -m pytest -q tests
 ```
 
-订阅的模型厂商与执行筛选/简报的模型是两回事。当前配置仍保留原先的 `deepseek/deepseek-v4-flash` 默认名称，尚未验证该名称或用户账号可用性；不要据此承诺可以直接调用。
+虚拟环境已安装 pytest，但项目 dev 依赖尚未记录它；重建环境后如缺失可使用 `uv pip install --python .venv/Scripts/python.exe pytest`。沙箱临时目录曾限制 MCP 子进程测试；在获准的正常权限环境下全量通过。网络请求及 Git 写操作有时需要提升权限，遵循工具审批，不重复向用户索要已授权操作的许可。
 
-`schedule.enabled: true` 只控制每次启动的行为，不会创建常驻任务。必须另有 Docker cron、GitHub Actions 或 Windows 任务计划定时启动，至少覆盖北京时间晚间窗口。窗口外一般只采集，筛选等调用的实际时机需要结合主流程核实。手动预览简报时，可使用临时配置关闭 schedule 和 notification，避免误发。跨运行 once 去重依赖保留存储数据。
+关键真实运行（均未发送通知）：
 
-环境中普通沙箱网络请求曾出现 ProxyError，提升权限后的只读网络核验成功。写 `.git/config` 和索引需要提升权限；使用已授权的 Git 操作即可，不要反复要求用户确认。不得输出环境中的密钥。
+- `output/preview/20261110-152123-125786/`：17 源，近七天 55 候选，生成 5 条，109.3 秒，本地入口首次完整验收。
+- `output/preview/20261110-153517-081090/`：质量复核，17 源成功，5 条，65.6 秒；与上次 4 条重复，说明新颖性不足。
+- `output/preview/20261110-184912-501205/`：新增 LangChain/Weaviate 后 18 源成功、1 失败，3 条实践+2 条兼容性更新，89.8 秒。
+- 最新：`output/preview/20261110-190314-913341/report.html`。22 源全部成功，80 候选筛出 25 条，生成 5 条，90.5 秒；Anthropic 记忆工程进入结果，Haystack/Langfuse 参与筛选但未入选五条。对应日志 `output/preview/catalog-live.log`。
 
-## 6. 建议后续顺序（尚未实现）
+最新运行完成后还有证据标签的小修正，已有离线测试覆盖；不要宣称最终每一行代码都重新完整联网运行过。最新 `latest.html` 可能被后续演示/失败覆盖，核查独立目录确认真实结果。
 
-1. 先用真实可用的 AI 配置完成一次安全预览，核验有效条数、事实与建议区分、原始链接和主题分布；处理空内容和模型失败。
-2. 改善来源覆盖：补国内外厂商公告、Changelog、API 弃用页；避免固定旧模型仓库成为唯一入口。没有 RSS 的页面增加适配器或快照差分。
-3. 增加正文获取、清洗、证据保存和来源时间/版本信息。抓取失败应明确降级为标题证据。
-4. 将日报改为结构化事件，程序执行事件去重、排序和五条上限；为兼容性与弃用建立独立告警逻辑。
-5. 将报告标题改成工程语义，同时保持通用模式兼容；不要仅改提示词就宣称前端已改。
-6. 增加收藏/忽略反馈，每周专题，以及含适用版本、最后核验时间的长期知识库。
+## 9. 后续建议（待用户确定下一步）
 
-不必立即引入复杂多 Agent 或向量数据库。先让高质量采集—筛选—简报—反馈闭环可用。以有用内容占比、重复率、阅读时间和重要更新漏报率衡量，而非采集数量。
+先重试推送未上传提交并核对远程 SHA。随后优先让用户阅读第一批实践渠道的输出，再改善质量：补原始日期展示、同主题多来源引用、已读/新增状态、适用版本与获取条件；修复实际发现的事实推断问题。不要只增加来源数量或把一次模型成功视为质量稳定。
 
-## 7. 新上下文开始时
-
-先读取本文和 `docs/ai-engineering-radar.md`，然后检查 `git status`、当前分支与最新提交；本文中的提交号是交接文档提交前的功能基线，不要把它当作永久 HEAD。按用户下一条需求继续，尚未获得“立即做完所有后续阶段”的指令。
-
-修改前核实实现，不把上面的建议当作现成功能。保留已有工作区改动；仅暂存自己完成的文件；做必要检查后提交并推送 `origin` 的 `main`，汇报提交链接与真实验证范围。
+本地手动版已交付。Windows 定时任务、通知渠道、长期运行与清理规则尚待做；独立弃用告警、语义事件聚类、收藏反馈、周报和长期知识库也未实现。没有用户新要求时，不把这些长期事项一次性全部展开。
