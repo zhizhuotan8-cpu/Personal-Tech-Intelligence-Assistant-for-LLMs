@@ -6,6 +6,25 @@ from unittest.mock import patch
 from trendradar.preview import run_preview, render_report
 
 class PreviewTests(unittest.TestCase):
+    def test_latest_success_survives_failure_and_demo(self):
+        event = dict(title='real report',facts='fact',impact='impact',suggestion='test',url='https://example.com')
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            fake = root/'trendradar'/'preview.py'
+            fake.parent.mkdir()
+            def successful(config,state,directory,full_evidence):
+                state.update(status='成功生成',events=[event])
+            with patch('trendradar.preview.__file__',str(fake)), patch('trendradar.preview.load_user_environment'), patch('trendradar.preview.load_config',return_value={'RSS':{}}), patch('trendradar.preview.collect_and_analyze',side_effect=successful) as collect:
+                self.assertEqual(run_preview(no_open=True),0)
+                latest = root/'output/preview/latest-success.html'
+                original = latest.read_text(encoding='utf-8')
+                collect.side_effect = RuntimeError('offline')
+                self.assertEqual(run_preview(no_open=True),1)
+                collect.side_effect = lambda config,state,directory,full: state.update(status='本次无值得推荐的更新',events=[])
+                self.assertEqual(run_preview(no_open=True),0)
+                self.assertEqual(run_preview(demo=True,no_open=True),0)
+                self.assertEqual(latest.read_text(encoding='utf-8'),original)
+
     def test_classification_batches_preserve_ids_and_fail_atomically(self):
         from unittest.mock import Mock
         from trendradar.preview import classify_preview

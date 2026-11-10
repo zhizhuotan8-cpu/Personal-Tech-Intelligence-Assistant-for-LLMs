@@ -2,6 +2,18 @@
 
 更新时间：2026-11-10（Asia/Shanghai）。本文件用于新对话恢复工作；实现以仓库当前代码为准。
 
+## 最新：每天自动生成已交付（2026-11-10 20:07，北京时间）
+
+已安装 `LLMEngineeringRadar-Daily` Windows 当前用户任务，每天 20:00（XML 固定 +08:00），动作 `.venv/Scripts/pythonw.exe -u -m trendradar.daily`，绝对工作目录为本仓库。普通用户 InteractiveToken，不存密码，需要电脑开机联网且当前用户保持登录，锁屏可。失败每 30 分钟最多重试两次，最长运行 30 分钟，错过时间支持补跑；无需打开 Codex。
+
+入口：`open-latest-report.bat` 看最近成功有内容的报告，`daily-task-status.bat` 查状态，`run-daily-now.bat` 手动触发或失败补跑，`install-daily-task.bat` 安装/更新，`uninstall-daily-task.bat` 卸载。管理脚本 `scripts/daily-task.ps1` 操作前核对同名任务动作归属，不覆盖其他任务。
+
+`trendradar/daily.py` 负责北京时间同日完成记录、OS 文件锁、日志脱敏及清理。成功和明确无更新当天不再调用模型；失败可重试；进程退出会释放锁，残留锁文件不阻塞。状态 `output/daily/latest.json`，每日记录 `output/daily/runs/`，日志 `output/daily/logs/`。只清理超过三十天的任务日志和正文缓存，保留所有报告与推荐历史。
+
+最近成功页 `output/preview/latest-success.html` 不被失败、演示、无更新覆盖；手动 `start-preview.bat` 仍可主动重新分析，不受每日完成记录限制。普通 `python -m trendradar` 旧正式日报入口保持独立，不发送本任务通知。
+
+实际任务于 20:04:13 启动、20:07:00 完成：22 源成功、4 条，报告 `output/preview/20261110-200413-394015/report.html`；出现一次空正文 length/5000，重试恢复成功，Windows 返回 0。20:07:34 同日重复触发返回 0，无新日志、无新报告、完成记录哈希不变。下次运行 2026-11-11 20:00。全量 80 项测试、54 子场景通过；尚未进行连续多日试运行。以下历史“未安装定时任务”说明以本节为准。
+
 ## 最新：阅读质量验收与正文复核（2026-11-10）
 
 已核对 19:34 五条简报：发现 Haystack 归档组件前提遗漏、Langfuse 缺少 N+1 具体方法、Gemini 摘要遗漏 httpx2 变更。详见 `docs/READING_REVIEW-20261110.md`。预览现在初选最多五篇后默认补取正文并再调用模型复核；仅目录简介且正文不可用的实践文章不进入最终结果。最近二十个唯一推荐作为不可信上下文辅助判断同主题信息增量，历史链接不能当本次可引用来源。不是确定性语义去重。

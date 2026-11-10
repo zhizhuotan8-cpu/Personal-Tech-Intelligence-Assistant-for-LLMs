@@ -295,6 +295,11 @@ def run_preview(demo=False, no_open=False, full_evidence=False, days=None):
         report.write_text(render_report(state),encoding='utf-8')
         (directory/'status.json').write_text(json.dumps(state,ensure_ascii=False,indent=2),encoding='utf-8')
         (root/'output'/'preview'/'latest.html').write_text(render_report(state),encoding='utf-8')
+        if not demo and code == 0 and state.get('events'):
+            latest_success = root/'output'/'preview'/'latest-success.html'
+            temporary = latest_success.with_name(f'.latest-success-{directory.name}.tmp')
+            temporary.write_text(render_report(state),encoding='utf-8')
+            os.replace(temporary, latest_success)
         os.chdir(previous)
     print(f"{state['status']}：{report}",flush=True)
     if not no_open:
