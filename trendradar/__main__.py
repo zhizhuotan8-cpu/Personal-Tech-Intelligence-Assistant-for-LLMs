@@ -1664,7 +1664,17 @@ def main():
     parser.add_argument("--doctor", action="store_true", help="运行环境与配置体检")
     parser.add_argument("--test-notification", action="store_true", help="发送测试通知到已配置渠道")
 
+    preview_group = parser.add_mutually_exclusive_group()
+    preview_group.add_argument("--preview", action="store_true", help="真实采集并生成本地预览，不发送通知")
+    preview_group.add_argument("--demo", action="store_true", help="打开离线样本演示")
+    parser.add_argument("--no-open", action="store_true", help="生成预览后不自动打开浏览器")
+    parser.add_argument("--full-evidence", action="store_true", help="预览时额外获取网页正文摘录")
+    parser.add_argument("--days", type=int, choices=[1,3,7,14], help="预览最近多少天内容，不影响正式日报")
     args = parser.parse_args()
+    if args.preview or args.demo:
+        from trendradar.preview import run_preview
+        raise SystemExit(run_preview(args.demo, args.no_open, args.full_evidence, args.days))
+
 
     debug_mode = False
     try:
