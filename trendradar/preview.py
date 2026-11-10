@@ -110,6 +110,40 @@ def previous_recommendations(directory):
     return urls
 
 
+def editorial_selection(events, recent, per_publisher=2):
+    """Bound publisher concentration and exact cross-link title repeats.
+
+    Semantic novelty remains an evidence-review responsibility; do not guess it
+    from a similarity score. Compatibility notices remain eligible for review.
+    """
+    import re
+    from urllib.parse import urlsplit
+    def title_key(event):
+        title = re.sub(r'^实践阅读\s*[｜|：:]\s*', '', event.get('title', ''))
+        return re.sub(r'[^\w]', '', title.casefold())
+    history = {title_key(event) for event in recent} - {''}
+    kept, publishers, titles = [], {}, set()
+    counts = dict(source_limit=0, repeated_title=0)
+    for event in events:
+        text = (event.get('title', '') + ' ' + event.get('facts', '')).lower()
+        risk = any(word in text for word in ('breaking', 'deprecat', 'sunset', 'end of life', '弃用', '下线', '不兼容', '破坏性'))
+        key = title_key(event)
+        publisher = (urlsplit(event.get('url', '')).hostname or '').lower().removeprefix('www.')
+        # GitHub hosts independent publishers; count the repository owner.
+        if publisher == 'github.com':
+            publisher += '/' + urlsplit(event['url']).path.strip('/').split('/')[0].lower()
+        if not risk and key and key in history | titles:
+            counts['repeated_title'] += 1
+            continue
+        if not risk and publisher and publishers.get(publisher, 0) >= per_publisher:
+            counts['source_limit'] += 1
+            continue
+        kept.append(event)
+        titles.add(key)
+        publishers[publisher] = publishers.get(publisher, 0) + 1
+    return kept, counts
+
+
 def recent_recommendation_context(directory, limit=20):
     events, seen = [], set()
     for path in sorted(directory.parent.glob('*/status.json'), reverse=True):
@@ -245,19 +279,23 @@ def collect_and_analyze(config, state, directory, full_evidence=False):
         state.update(status='本次无值得推荐的更新',message=f'已分析 {len(candidates)} 条近期内容，本次没有满足兴趣与质量要求的更新。')
         return
     print(f'[3/3] 为 {len(selected)} 条候选生成工程简报...',flush=True)
+    recent = recent_recommendation_context(directory)
     analysis_config = dict(config['AI_ANALYSIS'],STRUCTURED_EVENTS=True,FETCH_EVIDENCE=full_evidence,
-                           RECENT_RECOMMENDATIONS=recent_recommendation_context(directory))
+                           RECENT_RECOMMENDATIONS=recent)
     get_time = lambda:get_configured_time(config.get('TIMEZONE','Asia/Shanghai'))
     analyzer = AIAnalyzer(ai,analysis_config,get_time)
     result = analyzer.analyze([],rss_stats=[dict(word='工程情报',titles=selected)],report_type='手动真实预览')
     if not result.success:
         raise RuntimeError('AI 简报生成失败：'+result.error)
     evidence = analyzer.event_evidence
+    result.events, draft_omissions = editorial_selection(result.events, recent)
     if result.events:
         print('[复核] 正在核对入选文章正文、维护状态与信息增量...', flush=True)
         result, reviewed_evidence, omitted = review_shortlist(ai,analysis_config,selected,result,get_time)
         evidence = reviewed_evidence or evidence
         state['omitted_unverified'] = omitted
+    result.events, final_omissions = editorial_selection(result.events, recent)
+    state['editorial_omissions'] = {key: draft_omissions[key] + final_omissions[key] for key in draft_omissions}
     state.update(events=result.events,evidence=evidence,status='成功生成' if result.events else '本次无值得推荐的更新',message='' if result.events else '本次未选出证据充分且有新增价值的事件。')
 
 

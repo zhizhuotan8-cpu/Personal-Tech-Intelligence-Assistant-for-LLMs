@@ -127,6 +127,16 @@ rss:
   # - 正整数：覆盖全局设置，只推送此天数内的文章
   # - 0：禁用此频道的新鲜度过滤，推送所有文章
   feeds:
+    - id: "vllm-releases"
+      name: "vLLM 推理部署 Releases"
+      url: "https://github.com/vllm-project/vllm/releases.atom"
+      max_items: 10
+
+    - id: "sglang-releases"
+      name: "SGLang 推理部署 Releases"
+      url: "https://github.com/sgl-project/sglang/releases.atom"
+      max_items: 10
+
     # 官方实践目录适配器；无原始日期时作为实践阅读，不伪造发布时间。
     - id: "anthropic-engineering"
       name: "Anthropic Engineering 实践阅读"

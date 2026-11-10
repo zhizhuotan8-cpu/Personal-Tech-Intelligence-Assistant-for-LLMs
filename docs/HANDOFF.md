@@ -80,7 +80,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 | `trendradar/crawler/rss/catalogs.py`、`fetcher.py` | RSS/Atom 与官方非 RSS 实践目录采集 |
 | `config/ai_interests.txt`、`ai_engineering_prompt.txt` | 实用性优先、维护状态与适用条件、事实/推断/建议区分 |
 
-当前有 22 个配置来源，精确列表见 `config/config.yaml` 的 `rss.feeds`。新增五个实践来源为 LangChain、Weaviate、Anthropic Engineering、Haystack Tutorials、Langfuse Cookbook；后三个走目录适配器，保留历史实践阅读，不受动态天数窗口排除。
+当前有 24 个配置来源，精确列表见 `config/config.yaml` 的 `rss.feeds`。新增五个实践来源为 LangChain、Weaviate、Anthropic Engineering、Haystack Tutorials、Langfuse Cookbook；后三个走目录适配器，保留历史实践阅读，不受动态天数窗口排除。
 
 预览流程与限制：
 
@@ -95,7 +95,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 
 ## 6. 已完成验收
 
-最新全量：**80 项测试、54 个子场景通过**。
+最新全量：**86 项测试、54 个子场景通过**。
 
 ```powershell
 $env:LITELLM_LOCAL_MODEL_COST_MAP = 'True'
@@ -143,3 +143,12 @@ $env:LITELLM_LOCAL_MODEL_COST_MAP = 'True'
 ```
 
 仅暂存本轮实际修改的文件，避免 `git add .`、重置或清理上述改动。
+
+## 9. 本轮质量修正（2026-11-10）
+
+- 新增 vLLM、SGLang 官方 Releases，真实解析均成功，补充部署版本与兼容性信息；版本源不等于生产实践来源。Qwen 官方博客已复查可用，国内新模型的全面覆盖仍未完成。
+- 初稿及正文复核后增加编辑约束：普通条目同一发布方最多两条，GitHub 按组织区分；同一期及最近二十条推荐中相同规范化标题即使链接不同也过滤。重大兼容性、弃用和下线风险保留复查机会，不为凑满五条降低质量要求。
+- 省略数量记录到 status.json 的 editorial_omissions。换标题的语义重复仍由模型结合历史及正文判断，不能宣称完整解决。
+- 全量回归 86 项测试、54 个子场景通过。任务状态重新核对：LastTaskResult=0，下次北京时间 2026-11-11 20:00。连续多日稳定性仍待实际运行验收。
+
+- 本轮真实预览：`output/preview/20261110-204755-001270/report.html`，24 源成功、74 候选、最终 3 条、205.7 秒；涉及 Anthropic、Haystack，正文复核和证据/链接检查完成。该运行不计作跨日稳定性验收。
