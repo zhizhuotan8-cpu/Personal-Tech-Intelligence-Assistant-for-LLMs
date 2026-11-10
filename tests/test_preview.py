@@ -6,6 +6,12 @@ from unittest.mock import patch
 from trendradar.preview import run_preview, render_report
 
 class PreviewTests(unittest.TestCase):
+    def test_practice_is_not_presented_as_new_release(self):
+        event = dict(title='检索方法', facts='事实', impact='推断', suggestion='建议', url='https://www.langchain.com/blog/test')
+        text = render_report(dict(status='成功生成',generated_at='now',events=[event]))
+        self.assertIn('实践阅读｜检索方法',text)
+        self.assertIn('订阅时间不代表原始发布日期',text)
+
     def test_report_escapes_content(self):
         text=render_report(dict(status='运行失败',generated_at='now',message='<script>alert(1)</script>'))
         self.assertNotIn('<script>',text)

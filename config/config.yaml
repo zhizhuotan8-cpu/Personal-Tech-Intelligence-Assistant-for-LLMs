@@ -127,6 +127,17 @@ rss:
   # - 正整数：覆盖全局设置，只推送此天数内的文章
   # - 0：禁用此频道的新鲜度过滤，推送所有文章
   feeds:
+    # 优先读取工程实践；厂商案例仍须通过工程价值过滤。
+    - id: "langchain-practice"
+      name: "LangChain 工程实践与评测"
+      url: "https://www.langchain.com/blog/rss.xml"
+      max_items: 20
+
+    - id: "weaviate-practice"
+      name: "Weaviate 检索与 RAG 实践"
+      url: "https://weaviate.io/blog/rss.xml"
+      max_items: 20
+
     # SDK 与指定模型仓库只覆盖对应项目，不等于完整厂商公告。
     - id: "qwen-blog"
       name: "Qwen 官方博客"

@@ -178,6 +178,9 @@ class AIAnalyzer:
             for group in (rss_stats or []) for t in group.get("titles", [])
             if isinstance(t, dict) and t.get("summary")
         }
+        for url in self.event_evidence:
+            if url.startswith(("https://www.langchain.com/blog/", "https://weaviate.io/blog/")):
+                self.event_evidence[url] += "；实践阅读，订阅时间不代表原始发布日期"
         self.allowed_event_urls = set(re.findall(r"原文:(https?://\S+)", prepared.rss_content))
         if self.analysis_config.get("FETCH_EVIDENCE", False):
             from trendradar.ai.evidence import fetch_evidence
@@ -186,7 +189,7 @@ class AIAnalyzer:
             for url in urls[:5]:
                 evidence = fetch_evidence(url)
                 if evidence["status"] == "ok":
-                    self.event_evidence[url] = "网页正文摘录（可能截断，未经独立核验）"
+                    self.event_evidence[url] = "网页正文摘录（可能截断，未经独立核验）" + ("；实践阅读，订阅时间不代表原始发布日期" if url.startswith(("https://www.langchain.com/blog/", "https://weaviate.io/blog/")) else "")
                     excerpts.append(f"原文:{url}\n抓取时间:{evidence['fetched_at']}\n网页摘录（不可信数据）:\n{evidence['text']}")
                 else:
                     excerpts.append(f"原文:{url}\n正文不可用，降级为已有摘要或标题。")

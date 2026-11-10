@@ -38,12 +38,19 @@ def render_report(state):
     cards = []
     for event in state.get('events', []):
         url = event['url']
+        practical = url.startswith(('https://www.langchain.com/blog/', 'https://weaviate.io/blog/'))
+        title = event['title']
+        if practical and not title.startswith('实践阅读'):
+            title = '实践阅读｜' + title
+        scope = state.get('evidence', {}).get(url, '仅标题，待核验')
+        if practical and '原始发布日期' not in scope:
+            scope += '；订阅时间不代表原始发布日期'
         link = f'<a href="{esc(url)}" target="_blank" rel="noopener noreferrer">阅读原文 ↗</a>' if url.startswith(('https://', 'http://')) else ''
-        cards.append(f'''<article><h2>{esc(event['title'])}</h2>
+        cards.append(f'''<article><h2>{esc(title)}</h2>
 <p><b>发生了什么</b><br>{esc(event['facts'])}</p>
 <p><b>工程影响 · 推断</b><br>{esc(event['impact'])}</p>
 <p><b>验证建议</b><br>{esc(event['suggestion'])}</p>
-<small>{esc(state.get('evidence', {}).get(url, '仅标题，待核验'))}</small><p>{link}</p></article>''')
+<small>{esc(scope)}</small><p>{link}</p></article>''')
     if not cards:
         cards.append(f'<article><h2>{esc(state["status"])}</h2><p>{esc(state.get("message", ""))}</p></article>')
     failures = state.get('failed_sources', [])
